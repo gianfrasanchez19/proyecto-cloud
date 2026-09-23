@@ -29,7 +29,11 @@ export const navGroups: NavGroup[] = [
     ],
   },
   {
-    title: 'MS4 · Analítica',
+    title: 'MS4 · Historial',
     items: [{ to: '/historial', label: 'Historial de viajes' }],
+  },
+  {
+    title: 'MS5 · Analítica',
+    items: [{ to: '/analitica', label: 'Analítica' }],
   },
 ];

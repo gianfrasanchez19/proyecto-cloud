@@ -1,4 +1,4 @@
-export type MsKey = 'ms1' | 'ms2' | 'ms3' | 'ms4';
+export type MsKey = 'ms1' | 'ms2' | 'ms3' | 'ms4' | 'ms5';
 
 interface MsConfig {
   key: MsKey;
@@ -31,6 +31,11 @@ export const msConfig: Record<MsKey, MsConfig> = {
     key: 'ms4',
     label: 'MS4 (Historial)',
     baseUrl: readBaseUrl(import.meta.env.VITE_MS4_BASE_URL as string | undefined),
+  },
+  ms5: {
+    key: 'ms5',
+    label: 'MS5 (Analítica)',
+    baseUrl: readBaseUrl(import.meta.env.VITE_MS5_BASE_URL as string | undefined),
   },
 };
 

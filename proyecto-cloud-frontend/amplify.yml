@@ -8,10 +8,11 @@
 # real del repo conectado.
 #
 # Antes de construir, definir en la consola de Amplify (App settings > Environment
-# variables) las 4 variables VITE_MS1_BASE_URL, VITE_MS2_BASE_URL,
-# VITE_MS3_BASE_URL y VITE_MS4_BASE_URL con las URLs publicas HTTPS de cada
-# API Gateway. Un cambio de valor exige un nuevo build (Redeploy) para tomar
-# efecto, porque Vite las incrusta en tiempo de compilacion.
+# variables) las 5 variables VITE_MS1_BASE_URL, VITE_MS2_BASE_URL,
+# VITE_MS3_BASE_URL, VITE_MS4_BASE_URL y VITE_MS5_BASE_URL con las URLs
+# publicas HTTPS de cada API Gateway. Un cambio de valor exige un nuevo
+# build (Redeploy) para tomar efecto, porque Vite las incrusta en tiempo de
+# compilacion.
 version: 1
 frontend:
   phases:
