@@ -8,6 +8,7 @@ import { ServiciosListPage } from './pages/servicios/ServiciosListPage';
 import { ViajesListPage } from './pages/viajes/ViajesListPage';
 import { ConexionesListPage } from './pages/conexiones/ConexionesListPage';
 import { HistorialPage } from './pages/historial/HistorialPage';
+import { AnaliticaPage } from './pages/analitica/AnaliticaPage';
 
 export const router = createBrowserRouter([
   {
@@ -23,6 +24,7 @@ export const router = createBrowserRouter([
       { path: 'viajes', element: <ViajesListPage /> },
       { path: 'conexiones', element: <ConexionesListPage /> },
       { path: 'historial', element: <HistorialPage /> },
+      { path: 'analitica', element: <AnaliticaPage /> },
       { path: '*', element: <Navigate to="/pasajeros" replace /> },
     ],
   },

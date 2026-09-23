@@ -1,16 +1,18 @@
 # Gestión de Transporte — Frontend (proyecto-cloud-frontend)
 
-SPA en **React 18 + TypeScript + Vite** que consume los microservicios MS1–MS4
-del proyecto de Cloud Computing. Esta carpeta es autosuficiente: es la raíz
-que debe subirse a su propio repositorio de GitHub y conectarse a AWS
-Amplify. No depende de archivos del backend ni de la carpeta padre.
+SPA en **React 18 + TypeScript + Vite** que consume los microservicios
+MS1–MS5 del proyecto de Cloud Computing. Esta carpeta es autosuficiente: es
+la raíz que debe subirse a su propio repositorio de GitHub y conectarse a
+AWS Amplify. No depende de archivos del backend ni de la carpeta padre.
 
-> **Alcance de este avance**: prioriza el flujo de Pasajeros de MS1
-> (GET/POST `/pasajeros`, con la lista actualizándose tras un alta
-> confirmada por la API) y añade pantallas para las funciones ya existentes
-> de MS1–MS4. **No implementa MS5** ni analítica inventada, porque ese
-> microservicio todavía no existe como repositorio. Ver la sección
-> [Limitaciones conocidas](#limitaciones-conocidas).
+> **Estado actual**: implementa pantallas para las funciones ya existentes
+> de MS1 a MS5, incluida la sección **Analítica** que consume el API de
+> consultas Athena de MS5. La integración de MS5 (y la ampliación de MS4)
+> se hizo sin backends corriendo localmente, así que está **implementada
+> pero pendiente de probarse contra un endpoint desplegado real** — ver la
+> sección [Actualización: MS4 ampliado a "Historial" y MS5 "Analítica"
+> integrado](#actualización-ms4-ampliado-a-historial-y-ms5-analítica-integrado)
+> y [Limitaciones conocidas](#limitaciones-conocidas).
 
 ## Requisitos
 
@@ -63,6 +65,7 @@ Copiadas de `.env.example`, una por microservicio:
 | `VITE_MS2_BASE_URL` | MS2 (FastAPI, Rutas/Paraderos/Servicios) | 8000 |
 | `VITE_MS3_BASE_URL` | MS3 (Node/Express, Viajes/Conexiones) | 3000 |
 | `VITE_MS4_BASE_URL` | MS4 (FastAPI, Historial) | 8000 |
+| `VITE_MS5_BASE_URL` | MS5 (FastAPI, Analítica — Consultas Athena) | 8000 |
 
 Reglas importantes:
 
@@ -75,9 +78,11 @@ Reglas importantes:
   `https://abc123.execute-api.us-east-1.amazonaws.com/prod`). No agregar una
   barra final: el cliente HTTP (`src/lib/http.ts`) ya evita las barras
   dobles al concatenar rutas.
-- MS2 y MS4 comparten el mismo puerto interno de contenedor (8000), así que
-  en AWS necesitan dominios, paths o mapeos de API Gateway **distintos**,
+- MS2, MS4 y MS5 comparten el mismo puerto interno de contenedor (8000), así
+  que en AWS necesitan dominios, paths o mapeos de API Gateway **distintos**,
   definidos por el equipo de despliegue.
+- MS5 ya trae CORS abierto en el propio backend (`allow_origins=["*"]`), a
+  diferencia de MS1-MS4, que no tienen CORS configurado.
 - Si una variable queda vacía, el módulo correspondiente de la interfaz se
   ve pero queda deshabilitado con un aviso — nunca se dispara una petición
   accidental contra el propio origen del frontend.
@@ -96,12 +101,13 @@ Reglas importantes:
 
 ```
 src/
-  api/          clientes HTTP por microservicio (ms1.ts..ms4.ts)
-  types/        tipos TypeScript de cada contrato (ms1.ts..ms4.ts)
+  api/          clientes HTTP por microservicio (ms1.ts..ms5.ts)
+  types/        tipos TypeScript de cada contrato (ms1.ts..ms5.ts)
   lib/          env.ts (config), http.ts (fetch + normalización de errores),
                 errors.ts (ApiError), useAsync.ts (hook de datos)
   components/
-    layout/     AppLayout, Sidebar, navConfig
+    layout/     AppLayout, Sidebar, navConfig (grupos: MS1, MS2, MS3,
+                MS4 · Historial, MS5 · Analítica)
     ui/         Button, Field, Modal, ConfirmDialog, Badge, PageHeader,
                 AsyncBoundary, States (loading/empty/error/no-configurado),
                 SearchableSelect
@@ -115,7 +121,9 @@ src/
     servicios/  lista con filtro real por ruta/fecha + alta/edición/baja
     viajes/     selector de pasajero + lista + alta + finalizar
     conexiones/ selector de pasajero + lista + alta + búsqueda por viaje
-    historial/  selector de pasajero + consulta agregada de MS4
+    historial/  selector de pasajero + consulta agregada de MS4 (historial
+                completo con viajes/conexiones, y resumen agregado aparte)
+    analitica/  selector de consulta + tabla, 5 consultas reales de MS5
   styles/global.css  tokens de diseño (azul oscuro / turquesa) y componentes
 ```
 
@@ -144,10 +152,21 @@ src/
 | MS3 | Conexiones | POST | `/conexiones` | Sí | **Sí**, 201/400/404 confirmados |
 | MS3 | Conexiones | GET | `/conexiones/pasajero/{id}`, `/conexiones/viaje/{id}` | Sí | **Sí**, 200 confirmados |
 | MS4 | Historial | GET | `/historial/{pasajero_id}` | Sí | **Sí**, 200/500/422 confirmados |
+| MS4 | Historial | GET | `/historial/{pasajero_id}/resumen` | Sí | Integración implementada, pendiente de prueba contra endpoint desplegado |
+| MS5 | Analítica | GET | `/analitica/demanda-por-ruta` | Sí | Integración implementada, pendiente de prueba contra endpoint desplegado |
+| MS5 | Analítica | GET | `/analitica/demanda-por-paradero` | Sí | Integración implementada, pendiente de prueba contra endpoint desplegado |
+| MS5 | Analítica | GET | `/analitica/evolucion-mensual` | Sí | Integración implementada, pendiente de prueba contra endpoint desplegado |
+| MS5 | Analítica | GET | `/analitica/paraderos-por-perfil` | Sí | Integración implementada, pendiente de prueba contra endpoint desplegado |
+| MS5 | Analítica | GET | `/analitica/ingresos-por-ruta` | Sí | Integración implementada, pendiente de prueba contra endpoint desplegado |
 
 "Pendiente" (donde aparece) significa: el código está implementado y
 compila, pero esa operación puntual no se ejecutó todavía contra una
-instancia real del microservicio.
+instancia real del microservicio. Las filas de MS4 `/resumen` y de MS5 no
+se pudieron probar en esta sesión porque no hay una URL pública desplegada
+de ninguno de los dos (MS5 además requiere credenciales reales de AWS
+Athena, que no están disponibles aquí) — se verificó en su lugar que la UI
+navega correctamente y que el estado de error/reintento se muestra bien
+cuando el backend no responde (ver la sección de actualización más abajo).
 
 ## Verificaciones realizadas vs. pendientes
 
@@ -600,7 +619,8 @@ error en pantalla, y confirmando que "Reintentar" recupera el historial
 completo en cuanto MS3 vuelve a estar arriba (sin recargar la página).
 
 **Publicado en Amplify**: no ejecutado por mí — requiere que el equipo cree
-el app de Amplify y las 4 variables de entorno reales.
+el app de Amplify y las 5 variables de entorno reales (ver la sección de
+actualización de MS4/MS5 más abajo para el detalle de qué se agregó).
 
 ### Cómo reproducir esta misma prueba local
 
@@ -770,29 +790,99 @@ contenedores desechables):
 docker rm -f ms1-local-test pg-ms1 ms2-local-test mongo-ms2 ms3-local-test mysql-ms3 ms4-local-test
 ```
 
+## Actualización: MS4 ampliado a "Historial" y MS5 "Analítica" integrado
+
+Esta sección documenta un cambio posterior a todo lo anterior: el equipo
+actualizó los 4 backends (MS1-MS4) y publicó el repositorio completo de
+MS5. Antes de tocar el frontend se compararon los ZIPs actuales de los 5
+repos de GitHub contra el código ya revisado en sesiones previas, para no
+inventar ningún endpoint ni nombre de campo.
+
+**Cambios reales detectados en los backends** (ninguno se modificó desde
+aquí):
+- MS3: se corrigieron los 2 bugs bloqueantes documentados antes (versión
+  inválida de `nodemon` y el `module.exports` faltante de `Viaje`), y se
+  agregó Swagger. También se agregó una tabla `Pago` nueva, pero **sin
+  ningún endpoint REST** — no hay nada ahí que el frontend pueda consumir.
+- MS4 pasó de 1 a 4 endpoints reales: `GET /historial/{id}` (ahora también
+  trae `tarjeta_tipo`, `paradero_origen_nombre`, `paradero_final_nombre` y
+  un arreglo `conexiones`, que antes no existían en la respuesta), más
+  `/historial/{id}/viajes`, `/historial/{id}/resumen` y
+  `/historial/{id}/tarjetas`. También se agregó manejo de errores propio
+  (`NotFoundError` → 404, `ExternalServiceError` → 502) donde antes
+  cualquier fallo devolvía un `500` genérico sin distinguir la causa.
+- MS5 es un repositorio nuevo y completo: API FastAPI sin base de datos
+  propia (`proyecto-cloud-ms5/api`) que ejecuta consultas Athena y expone 9
+  endpoints `GET /analitica/*`, más `/health`. Ya trae CORS abierto
+  (`allow_origins=["*"]`) a diferencia de MS1-MS4. La ingesta hacia S3/Glue
+  vive en `proyecto-cloud-ms5/ingesta` — no es algo que el frontend consuma.
+
+**Cambios hechos en el frontend** (todos dentro de
+`proyecto-cloud-frontend/`, nada en los backends):
+- `src/components/layout/navConfig.ts`: el grupo de MS4 en la barra
+  lateral pasó de decir "MS4 · Analítica" a **"MS4 · Historial"**, y se
+  agregó un grupo nuevo **"MS5 · Analítica"** con el enlace a `/analitica`.
+- `src/router.tsx`: nueva ruta `analitica` → `AnaliticaPage`.
+- `src/types/ms4.ts` y `src/api/ms4.ts`: se actualizó `Historial` con los
+  campos reales que ya devuelve MS4 (antes el tipo estaba desactualizado
+  respecto al backend) y se agregó `historialApi.resumen()` para el
+  segundo endpoint real, `GET /historial/{id}/resumen`.
+- `src/pages/historial/HistorialPage.tsx`: ahora también pide el resumen y
+  lo muestra como una fila de datos (total de viajes, total de conexiones,
+  tipo de servicio más usado, último viaje); la tabla de viajes ganó
+  columnas para tarjeta y paraderos de origen/final, y se agregó una tabla
+  de conexiones debajo — todo con datos que MS4 ya devolvía y que antes se
+  descartaban silenciosamente por el tipo desactualizado.
+- `src/types/ms5.ts` (nuevo) y `src/api/ms5.ts` (nuevo): tipos y cliente
+  para 5 de las 9 consultas de MS5. Cada campo de cada interfaz es el alias
+  de columna exacto del `SELECT` en
+  `proyecto-cloud-ms5/api/app/queries.py` — MS5 no declara
+  `response_model` en FastAPI, así que no hay un contrato Pydantic del que
+  copiar; se transcribió el SQL real.
+- `src/pages/analitica/AnaliticaPage.tsx` (nuevo): selector de consulta +
+  una tabla, reutilizando `PageHeader`, `Field`, `AsyncBoundary` y las
+  clases `card`/`table-wrap`/`data-table` ya existentes (mismo aspecto que
+  el resto de la app, sin librerías de gráficos nuevas).
+- `src/lib/env.ts` y `src/vite-env.d.ts`: se agregó `'ms5'` a `MsKey` y
+  `VITE_MS5_BASE_URL` al tipado de `import.meta.env`.
+- `.env.example`, `vite.config.ts` (proxy de desarrollo) y `amplify.yml`:
+  se agregó la quinta variable/entrada para MS5, siguiendo exactamente el
+  mismo patrón que ya existía para MS1-MS4.
+
+**Qué se verificó y qué no.** Con Docker Desktop apagado en esta sesión, no
+había ninguna instancia local de MS1-MS5 corriendo. Se verificó:
+- `npm run build` termina sin errores (`tsc -b && vite build`, 84 módulos).
+- La app arranca con `npm run dev`, la barra lateral muestra "MS4 ·
+  Historial" y "MS5 · Analítica" correctamente, y las 9 rutas (incluida la
+  nueva `/analitica`) navegan sin errores de React.
+- Con los backends apagados, `/historial` y `/analitica` no rompen: cada
+  sección muestra el estado de error recuperable con "Reintentar" en vez
+  de una pantalla en blanco, y cambiar la consulta en el selector de
+  `/analitica` sí dispara una petición nueva al endpoint correcto
+  (confirmado en la pestaña Network del navegador).
+
+**No se probó** ninguna respuesta real de MS4 `/resumen` ni de ningún
+endpoint de MS5 contra datos reales, porque no hay una URL pública
+desplegada de ninguno de los dos microservicios todavía (y MS5 en
+particular necesita credenciales reales de AWS para consultar Athena, que
+no están disponibles en esta sesión). **Integración implementada,
+pendiente de prueba contra endpoint desplegado.**
+
 ## Limitaciones conocidas (no atendidas aquí; corresponden al backend)
 
 - **MS5 no existe todavía** como repositorio: esta interfaz no lo
   implementa ni simula analítica de Athena. La entrega final (5
   microservicios, 2+ métodos c/u, Amplify + repo público) **no** queda
   cumplida con este avance.
-- **MS4 solo expone una operación de negocio** (`GET /historial/{id}`,
-  además de `/health`, que es solo diagnóstico) — confirmado ahora también
-  en vivo, con MS4 corriendo: no hay ningún otro router registrado en
-  `app/main.py`. La segunda operación funcional de MS4 está pendiente del
-  equipo; esta interfaz no la simula ni presenta dos llamadas al mismo
-  endpoint como si fueran dos operaciones distintas.
-- **MS4 no distingue "no encontrado" de "dependencia caída": todo es un
-  500 sin JSON.** Ninguno de los 3 clientes HTTP de MS4
-  (`ms1_client.py`/`ms2_client.py`/`ms3_client.py`) captura excepciones —
-  todos usan `response.raise_for_status()` sin `try/except`, y
-  `app/main.py` no registra ningún exception handler. Se probó
-  consultando un pasajero inexistente (404 real en MS1) y, por separado,
-  apagando MS3 a propósito: **ambos casos devolvieron exactamente el mismo
-  `500 Internal Server Error` en texto plano**, sin forma de distinguirlos
-  desde el cliente. El frontend no inventa esa distinción — muestra el
-  error genérico con un botón "Reintentar", que se probó y funciona en
-  cuanto la dependencia vuelve a estar disponible.
+- **(Corregido por el equipo desde la verificación anterior) MS4 pasó de 1
+  a 4 endpoints reales**, y ya distingue "no encontrado" (404) de
+  "dependencia caída" (502) en vez del `500` genérico sin JSON que se había
+  confirmado en Docker en una sesión previa (ver la sección de
+  actualización más arriba para el detalle). El frontend ahora consume 2 de
+  esos 4 endpoints (`/historial/{id}` y `/historial/{id}/resumen`); los
+  otros dos (`/historial/{id}/viajes`, `/historial/{id}/tarjetas`) existen
+  en el backend pero no se integraron para no duplicar información que ya
+  trae `/historial/{id}` ni complicar la pantalla sin necesidad.
 - **MS3 no arranca con el código del repositorio — confirmado en vivo, no
   solo por lectura.** Dos bugs bloqueantes distintos:
   1. El `Dockerfile` falla al construirse:
@@ -882,12 +972,13 @@ este trabajo de frontend). Resume qué necesita configurar y por qué.
    `npm run build`, artefactos en `dist`). Referencia oficial:
    <https://docs.aws.amazon.com/amplify/latest/userguide/yml-specification-syntax.html>
 3. **Variables de entorno a configurar en Amplify** (App settings →
-   Environment variables), las 4 que usa esta app, con las URLs públicas
+   Environment variables), las 5 que usa esta app, con las URLs públicas
    HTTPS reales de cada API Gateway:
    - `VITE_MS1_BASE_URL`
    - `VITE_MS2_BASE_URL`
    - `VITE_MS3_BASE_URL`
    - `VITE_MS4_BASE_URL`
+   - `VITE_MS5_BASE_URL`
 
    Cualquier cambio posterior exige un **Redeploy** (nuevo build), porque
    Vite las incrusta en tiempo de compilación, no de ejecución.
